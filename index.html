@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Editor - PixelPerfect Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #10b981;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .header {
+            text-align: center;
+            padding: 2rem 1rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .editor-container {
+            display: grid;
+            grid-template-columns: minmax(300px, 350px) 1fr;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .tools-panel {
+            background: var(--surface);
+            padding: 1.25rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            height: min-content;
+            position: sticky;
+            top: 1rem;
+        }
+
+        .image-preview {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: auto;
+            position: relative;
+        }
+
+        #previewCanvas {
+            max-width: 100%;
+            height: auto;
+            width: 100%;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            background: repeating-conic-gradient(#f1f5f9 0% 25%, transparent 0% 50%) 50% / 20px 20px;
+        }
+
+        .tool-group {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 0.75rem;
+        }
+
+        .tool-group h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tool-control {
+            margin-bottom: 1rem;
+        }
+
+        .tool-control label {
+            display: block;
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]:active::-webkit-slider-thumb {
+            transform: scale(1.2);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            font-weight: 500;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .upload-section {
+            text-align: center;
+            padding: 2rem;
+            border: 2px dashed var(--border);
+            border-radius: 1rem;
+            margin: 2rem 0;
+            transition: all 0.2s;
+        }
+
+        .upload-section:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .preview-container {
+            position: relative;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .responsive-aspect {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .editor-container {
+                grid-template-columns: 1fr;
+            }
+
+            .tools-panel {
+                position: static;
+                order: 2;
+            }
+
+            .image-preview {
+                order: -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1.5rem 1rem;
+            }
+
+            .btn {
+                padding: 0.75rem;
+                font-size: 0.9rem;
+            }
+
+            .tool-group {
+                padding: 0.75rem;
+            }
+
+            .upload-section {
+                padding: 1.5rem;
+            }
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            place-items: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .dimension-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>PixelPerfect Pro</h1>
+        <p>AI-Powered Photo Editing & Compression Studio</p>
+    </header>
+
+    <div class="container">
+        <div class="upload-section">
+            <input type="file" id="imageInput" accept="image/*" hidden>
+            <button onclick="document.getElementById('imageInput').click()" class="btn">
+                <i class="fas fa-cloud-upload-alt"></i> Upload Image
+            </button>
+            <p class="text-muted" style="margin-top: 1rem; color: #64748b;">Supports JPG, PNG, WebP, SVG (Max 10MB)</p>
+        </div>
+
+        <div class="editor-container">
+            <div class="tools-panel">
+                <div class="tool-group">
+                    <h3><i class="fas fa-crop"></i> Crop & Resize</h3>
+                    <div class="tool-control">
+                        <label>Width <input type="number" class="dimension-input" id="widthInput"></label>
+                        <label>Height <input type="number" class="dimension-input" id="heightInput"></label>
+                        <button class="btn" onclick="maintainAspectRatio()">Maintain Aspect Ratio</button>
+                    </div>
+                </div>
+
+                <div class="tool-group">
+                    <h3><i class="fas fa-sliders-h"></i> Adjustments</h3>
+                    <div class="tool-control">
+                        <label>Brightness</label>
+                        <input type="range" id="brightness" min="-100" max="100" value="0">
+                    </div>
+                    <div class="tool-control">
+                        <label>Contrast</label>
+                        <input type="range" id="contrast" min="-100" max="100" value="0">
+                    </div>
+                    <div class="tool-control">
+                        <label>Saturation</label>
+                        <input type="range" id="saturation" min="-100" max="100" value="0">
+                    </div>
+                </div>
+
+                <div class="tool-group">
+                    <h3><i class="fas fa-magic"></i> AI Tools</h3>
+                    <button class="btn" onclick="handleAI('backgroundRemoval')">
+                        <i class="fas fa-image"></i> Remove Background
+                    </button>
+                    <button class="btn" onclick="handleAI('upscale')">
+                        <i class="fas fa-expand"></i> AI Upscale
+                    </button>
+                    <button class="btn" onclick="handleAI('styleTransfer')">
+                        <i class="fas fa-palette"></i> Style Transfer
+                    </button>
+                </div>
+
+                <div class="tool-group">
+                    <h3><i class="fas fa-download"></i> Export</h3>
+                    <select id="formatSelect" class="dimension-input">
+                        <option value="jpg">JPEG</option>
+                        <option value="png">PNG</option>
+                        <option value="webp">WebP</option>
+                    </select>
+                    <button class="btn" onclick="compressImage()" style="margin-top: 1rem;">
+                        <i class="fas fa-file-download"></i> Download Image
+                    </button>
+                </div>
+            </div>
+
+            <div class="image-preview">
+                <div class="preview-container">
+                    <canvas id="previewCanvas"></canvas>
+                </div>
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentImage = null;
+        let canvas = document.getElementById('previewCanvas');
+        let ctx = canvas.getContext('2d');
+        let aspectRatio = 1;
+
+        // Responsive Image Handling
+        function resizeCanvasToContainer() {
+            const container = document.querySelector('.preview-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            if(currentImage) {
+                drawImageScaled(currentImage);
+            }
+        }
+
+        function drawImageScaled(img) {
+            const container = document.querySelector('.preview-container');
+            const scale = Math.min(
+                container.clientWidth / img.width,
+                container.clientHeight / img.height
+            );
+            
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
+
+        // Image Upload Handling
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            showLoading();
+            const file = e.target.files[0];
+            loadImage(file).finally(hideLoading);
+        });
+
+        async function loadImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        aspectRatio = img.width / img.height;
+                        resizeCanvasToContainer();
+                        currentImage = img;
+                        updateDimensionInputs();
+                        applyFilters();
+                        resolve();
+                    }
+                    img.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Responsive Filters
+        function applyFilters() {
+            const brightness = document.getElementById('brightness').value;
+            const contrast = document.getElementById('contrast').value;
+            const saturation = document.getElementById('saturation').value;
+
+            ctx.filter = `
+                brightness(${100 + parseInt(brightness)}%)
+                contrast(${100 + parseInt(contrast)}%)
+                saturate(${100 + parseInt(saturation)}%)
+            `;
+            
+            if(currentImage) {
+                drawImageScaled(currentImage);
+            }
+        }
+
+        // Dimension Controls
+        function updateDimensionInputs() {
+            document.getElementById('widthInput').value = currentImage.width;
+            document.getElementById('heightInput').value = currentImage.height;
+        }
+
+        function maintainAspectRatio() {
+            const width = document.getElementById('widthInput').value;
+            document.getElementById('heightInput').value = Math.round(width / aspectRatio);
+        }
+
+        // Compression & Export
+        function compressImage() {
+            const format = document.getElementById('formatSelect').value;
+            const quality = 0.8;
+            
+            canvas.toBlob(function(blob) {
+                const link = document.createElement('a');
+                link.download = `compressed-image.${format}`;
+                link.href = URL.createObjectURL(blob);
+                link.click();
+            }, `image/${format}`, quality);
+        }
+
+        // Responsive Window Handling
+        window.addEventListener('resize', resizeCanvasToContainer);
+
+        // Loading State
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'grid';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // Initial Setup
+        resizeCanvasToContainer();
+    </script>
+</body>
+</html>
